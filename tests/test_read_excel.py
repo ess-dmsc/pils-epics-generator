@@ -1,22 +1,25 @@
+import os
+
 import pytest
 from src.reader import ExcelReader
-import pandas as pd
+
+
+def data_file_path(filename):
+    return os.path.join(os.path.dirname(__file__), filename)
 
 
 @pytest.fixture
 def reader():
-    return ExcelReader("test.xlsx")
+    file_path = data_file_path("test.xlsx")
+    return ExcelReader(file_path)
 
 
 def test_can_read_excel_file(reader):
-    # Given
-    file_path = "test.xlsx"
+    file_path = data_file_path("test.xlsx")
 
-    # When
     result = reader.file_path
 
-    # Then
-    assert result == "test.xlsx"
+    assert result == file_path
 
 
 def test_can_read_sheet_by_index(reader):

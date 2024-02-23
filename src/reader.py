@@ -58,7 +58,7 @@ class ExcelReader:
         """
         # Fill in missing mc_unit values for all zeroes
         df['mc_unit'] = df['mc_unit'].replace(0, pd.NA)
-        df['mc_unit'] = df['mc_unit'].fillna(method='ffill')
+        df['mc_unit'] = df['mc_unit'].ffill()
         return df
 
     def _filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
