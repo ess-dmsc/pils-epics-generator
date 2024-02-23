@@ -41,10 +41,10 @@ or with ssh
 
    - **Using `venv`**:
 
-     If you don't have Python 3 installed globally, it is recommended to install it first. Then, create a virtual environment by running:
+     If you don't have Python installed, install it first. Then, create a virtual environment by running:
 
      ```bash
-     python3 -m venv venv
+     python -m venv venv
      ```
 
      This command creates a new directory `venv` in your project directory, containing the virtual environment.
@@ -70,10 +70,10 @@ or with ssh
      If you have Anaconda or Miniconda installed, create a Conda environment by running:
 
      ```bash
-     conda create --name pils-env python=3.8
+     conda create --name pils-env python=3.11
      ```
 
-     Replace `python=3.8` with the version of Python you want to use.
+     Replace `python=3.11` with the version of Python you want to use.
 
      Activate the Conda environment with:
 
