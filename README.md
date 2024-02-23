@@ -25,7 +25,7 @@ Before running the PILS EPICS Generator, ensure you have the following installed
    git clone https://github.com/ess-dmsc/pils-epics-generator.git
    ```
 
-or with ssh
+   or with ssh
 
    ```bash
    git clone git@github.com:ess-dmsc/pils-epics-generator.git
