@@ -15,6 +15,9 @@ def main():
     parser = argparse.ArgumentParser(description="Generate XML configuration for devices from an Excel file.")
     parser.add_argument("-p", "--path", help="Path to the Excel file containing device data.", required=True)
 
+    parser.add_argument("--pils", help="Boolean flag if you want to generate PILS tables")
+    parser.add_argument("--ioc", help="Boolean flag if you want to generate IOC st.cmd")
+
     # Parse arguments from the command line
     args = parser.parse_args()
 
@@ -26,8 +29,13 @@ def main():
     device_collection = DeviceCollection(instrument_name)
     device_collection.from_dataframe(df)
 
-    # Generate XML from the device collection
-    device_collection.to_xml()
+    if args.pils:
+        # Generate PILS tables from the device collection
+        device_collection.to_xml()
+
+    if args.ioc:
+        # Generate IOC st.cmd from the device collection
+        device_collection.to_st_cmd(ioc_ip='10.102.10.49', plc_ip='10.102.10.22')
 
 
 if __name__ == "__main__":

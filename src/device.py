@@ -449,7 +449,7 @@ class DeviceCollection:
             with open(xml_file_path, 'w', encoding='utf-8') as file:
                 file.write(pretty_xml_str)
 
-    def to_st_cmd(self, motor_port, ip, ip_port, amsnetidioc, asyn_port):
+    def to_st_cmd(self, ioc_ip, plc_ip):
         for mc_unit, devices in self.devices_by_unit.items():
             st_cmd_file_path = f"st_cmd_mc_unit_{mc_unit}.st"
 
@@ -457,22 +457,29 @@ class DeviceCollection:
             commands = []
 
             # Filter devices with pv_name and mc_axis_nc not None
-            devices = [device for device in devices if device.pv_name is not None and device.mc_axis_nc is not None]
-            num_devices = len(devices)
+            # devices = [device for device in devices if device.pv_name is not None and device.mc_axis_nc is not None]
+            # num_devices = len(devices)
+
+            # find the maximum number of devices per axis type
+            pn_devs = [device for device in devices if device.mc_axis_pn is not None]
+            nc_devs = [device for device in devices if device.mc_axis_nc is not None]
+
+            num_devices = max(len(pn_devs), len(nc_devs))
+
 
             # Add commands for EPICS environment setup
             commands.extend([
                 'require ethercatmc,USER',
                 '',
                 f'epicsEnvSet("MOTOR_PORT",    "$(SM_MOTOR_PORT=MCU{mc_unit})")',
-                f'epicsEnvSet("IPADDR",        "$(SM_IPADDR={ip})")',
-                f'epicsEnvSet("IPPORT",        "$(SM_IPPORT={ip_port})")',
-                f'epicsEnvSet("AMSNETIDIOC",   "$(SM_AMSNETID={amsnetidioc})")',
-                f'epicsEnvSet("ASYN_PORT",     "$(SM_ASYN_PORT={asyn_port})")',
+                f'epicsEnvSet("IPADDR",        "$(SM_IPADDR={plc_ip})")',
+                f'epicsEnvSet("IPPORT",        "$(SM_IPPORT=48898)")',
+                f'epicsEnvSet("AMSNETIDIOC",   "$(SM_AMSNETID={ioc_ip}.1.1)")',
+                f'epicsEnvSet("ASYN_PORT",     "$(SM_ASYN_PORT=MC_CPU1)")',
                 f'epicsEnvSet("PREFIX",        "$(SM_PREFIX={self.instrument.upper()}-)")',
                 'epicsEnvSet("PREC",          "$(SM_PREC=3)")',
-                f'epicsEnvSet("SM_NOAXES",     "{num_devices}")',
-                'epicsEnvSet("ECM_OPTIONS",   "adsPort=852;amsNetIdRemote=5.81.143.110.1.1;amsNetIdLocal=$(AMSNETIDIOC)")',
+                f'epicsEnvSet("ECM_NUMAXES",     "{num_devices}")',
+                f'epicsEnvSet("ECM_OPTIONS",   "adsPort=852;amsNetIdRemote={plc_ip}.1.1;amsNetIdLocal=$(AMSNETIDIOC)")',
                 '',
                 'epicsEnvSet("ECM_MOVINGPOLLPERIOD", "0")',
                 'epicsEnvSet("ECM_IDLEPOLLPERIOD",   "0")',
@@ -482,22 +489,41 @@ class DeviceCollection:
             ])
 
             # Add commands for each device
+            spare_nc_idx = 1
+            spare_pn_idx = 1
             for device in devices:
-                commands.extend([
-                    '#',
-                    f'# AXIS {device.mc_axis_nc}',
-                    '#',
-                    'epicsEnvSet("AXISCONFIG",      "")',
-                    f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name})")',
-                    f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={device.mc_axis_nc})")',
-                    'epicsEnvSet("DESC",            "$(SM_DESC=DESC)")',
-                    'epicsEnvSet("EGU",             "$(SM_EGU=EGU)")',
-                    'epicsEnvSet("RAWENCSTEP_ADEL", 0)',
-                    'epicsEnvSet("RAWENCSTEP_MDEL", 0)',
-                    '< ethercatmcIndexerAxis.iocsh',
-                    '< ethercatmcAxisdebug.iocsh',
-                    ''
-                ])
+                if device.mc_axis_nc is not None:
+                    commands.extend([
+                        '#',
+                        f'# AXIS {device.mc_axis_nc}',
+                        '#',
+                        'epicsEnvSet("AXISCONFIG",      "")',
+                        f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else f"Spare-AXIS-{spare_nc_idx}"})")',
+                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={device.mc_axis_nc})")',
+                        'epicsEnvSet("RAWENCSTEP_ADEL", 0)',
+                        'epicsEnvSet("RAWENCSTEP_MDEL", 0)',
+                        '< ethercatmcIndexerAxis.iocsh',
+                        '< ethercatmcAxisdebug.iocsh',
+                        # 'iocshLoad("$(ethercatmc_DIR)ethercatmcIndexerAxis.iocsh")',
+                        # 'iocshLoad("$(ethercatmc_DIR)ethercatmcAxisdebug.iocsh")',
+                        ''
+                    ])
+                    if device.pv_name is None:
+                        spare_nc_idx += 1
+                elif device.mc_axis_pn is not None:
+                    commands.extend([
+                        '#',
+                        f'# SHUTTER {device.mc_axis_pn}',
+                        '#',
+                        'epicsEnvSet("AXISCONFIG",      "")',
+                        f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else f"Spare-SHT-{spare_pn_idx}"})")',
+                        f'epicsEnvSet("SHT_NO",         "$(SM_SHT_NO={device.mc_axis_pn})")',
+                        '< ethercatmcShutter.iocsh',
+                        # 'iocshLoad("$(ethercatmc_DIR)ethercatmcShutter.iocsh")',
+                        ''
+                    ])
+                    if device.pv_name is None:
+                        spare_pn_idx += 1
 
             # Add commands to start the poller
             commands.extend([
