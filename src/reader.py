@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List, Tuple
 
 
-COL_NAMES = ["axis_description", "fbs_description", "pv_name", "mc_unit", "mc_axis_nc", "mc_axis_pn", "has_temp", "temp_units", "extra_dev", "extra_name", "extra_type", "extra_desc"]
+COL_NAMES = ["axis_description", "fbs_description", "pv_name", "mc_unit", "ptp", "mc_axis_nc", "mc_axis_pn", "pils_name", "pils_unit", "has_temp", "temp_units", "extra_dev", "extra_name", "extra_type", "extra_desc"]
 
 
 class ExcelReader:
@@ -46,6 +46,7 @@ class ExcelReader:
         df.columns = COL_NAMES
 
         df = self._fill_mc_unit(df)
+        df = self._fill_ptp(df)
         df = self._filter_dataframe(df)
         return df, instrument_name
 
@@ -59,6 +60,18 @@ class ExcelReader:
         # Fill in missing mc_unit values for all zeroes
         df['mc_unit'] = df['mc_unit'].replace(0, pd.NA)
         df['mc_unit'] = df['mc_unit'].ffill()
+        return df
+
+    def _fill_ptp(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Fill in missing ptp values in the DataFrame.
+
+        :param df: The DataFrame to fill.
+        :return: The filled DataFrame.
+        """
+        # Fill in missing ptp values for all zeroes
+        df['ptp'] = df['ptp'].replace(0, pd.NA)
+        df['ptp'] = df['ptp'].ffill()
         return df
 
     def _filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:

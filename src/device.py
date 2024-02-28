@@ -57,6 +57,11 @@ pils_temp_units = {
     'k': '16#0008'
 }
 
+pils_units = {
+    'mm': '16#FD04',
+    'degree': '16#000C',
+}
+
 
 def get_next_mb(memory_offset: int, device_type: str) -> int:
     """
@@ -92,9 +97,9 @@ class Device:
     Represents a device with its configurations and properties.
     """
 
-    def __init__(self, description: str, pv_name: str, mc_unit: int, mc_axis_nc: int, mc_axis_pn: int,
-                 device_type: str, has_temp: bool = False, temp_units: str = 'c', has_extra: bool = False,
-                 extra_name: str = '', extra_type: str = '', extra_desc: str = '') -> None:
+    def __init__(self, description: str, pv_name: str, mc_unit: int, ptp: bool, mc_axis_nc: int, mc_axis_pn: int,
+                 device_type: str, pils_name: str, pils_unit: str, has_temp: bool = False, temp_units: str = 'c',
+                 has_extra: bool = False, extra_name: str = '', extra_type: str = '', extra_desc: str = '') -> None:
         """
         Initializes a new instance of the Device class.
 
@@ -114,8 +119,11 @@ class Device:
         self.description = description
         self.pv_name = pv_name
         self.mc_unit = mc_unit
+        self.ptp = ptp
         self.mc_axis_nc = mc_axis_nc
         self.mc_axis_pn = mc_axis_pn
+        self.pils_name = pils_name
+        self.pils_unit = pils_unit
         self.device_type = device_type
         self.has_temp = has_temp
         self.temp_units = temp_units
@@ -145,9 +153,12 @@ class Device:
             description=row['axis_description'],
             pv_name=row['pv_name'] if not row['pv_name'] == 0 else None,
             mc_unit=int(row['mc_unit']),
+            ptp=True if row['ptp'] == 'yes' else False,
             mc_axis_nc=int(row['mc_axis_nc']) if not pd.isna(row['mc_axis_nc']) else None,
             mc_axis_pn=int(row['mc_axis_pn']) if not pd.isna(row['mc_axis_pn']) else None,
             device_type=device_type,
+            pils_name=row['pils_name'],
+            pils_unit=row['pils_unit'] if not pd.isna(row['pils_unit']) else 'mm',
             has_temp=True if row['has_temp'] == 'x' else False,
             temp_units=row['temp_units'] if not pd.isna(row['temp_units']) else 'c',
             has_extra=True if not pd.isna(row['extra_dev']) else False,
@@ -226,7 +237,7 @@ class DeviceCollection:
     def xml_describe_5010(self, device, current_offset):
         device_info = []
         current_offset = align_mb(current_offset, device.device_type)
-        device_info_str = f"(nTypCode := 16#{device.device_type}, sName := GVL.astAxes[{device.mc_axis_nc}].stDescription.sAxisName, nOffset := {current_offset}, nUnit := GVL.astAxes[{device.mc_axis_nc}].stDescription.eUnit, asAUX := [(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('InterlockFwd'),('InterlockBwd'),('localMode'),('inTargetPos'),('homeSensor'),('notHomed'),('enabled')], nFlags := 1),"
+        device_info_str = f"(nTypCode := 16#{device.device_type}, sName := '{device.pils_name}', nOffset := {current_offset}, nUnit := {pils_units[device.pils_unit]}, asAUX := [(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('InterlockFwd'),('InterlockBwd'),('localMode'),('inTargetPos'),('homeSensor'),('notHomed'),('enabled')], nFlags := 1),"
         current_offset = get_next_mb(current_offset, device.device_type)
         device_info.append(device_info_str)
         if device.has_temp:
@@ -266,7 +277,7 @@ class DeviceCollection:
     def xml_describe_1E04(self, device, current_offset):
         device_info = []
         current_offset = align_mb(current_offset, device.device_type)
-        device_info_str = f"(nTypCode := 16#{device.device_type}, sName := GVL.astPneumaticAxes[{device.mc_axis_pn}].stPneumaticAxisConfig.sPneumaticAxisName, nOffset := {current_offset}, asAux := [('Closed'),('Closing'),('Opening'),('Opened'),('InTheMiddle'),(''),(''),(''),(''),(''),(''),(''),(''),(''),('Interlocked'),('PSSPermitDenied'),('SolenoidActive'),('Retracted'),('Extended'),('Retracting'),('Extending'),(''),(''),('')]),"
+        device_info_str = f"(nTypCode := 16#{device.device_type}, sName := '{device.pils_name}', nOffset := {current_offset}, asAux := [('Closed'),('Closing'),('Opening'),('Opened'),('InTheMiddle'),(''),(''),(''),(''),(''),(''),(''),(''),(''),('Interlocked'),('PSSPermitDenied'),('SolenoidActive'),('Retracted'),('Extended'),('Retracting'),('Extending'),(''),(''),('')]),"
         current_offset = get_next_mb(current_offset, device.device_type)
         device_info.append(device_info_str)
         if device.has_temp:
@@ -287,6 +298,48 @@ class DeviceCollection:
         current_offset = align_mb(current_offset, '1302')
         device_info = f"(nTypCode := 16#1302, sName := '{device.extra_desc}', nOffset := {current_offset}, nUnit := {pils_temp_units[device.temp_units]}),"
         current_offset = get_next_mb(current_offset, '1302')
+        return [device_info], current_offset
+
+    def xml_define_1A04(self, name, idx, current_offset):
+        current_offset = align_mb(current_offset, '1A04')
+        device_info = f"{name} AT %MB{current_offset}: ST_1A04;"
+        current_offset = get_next_mb(current_offset, '1A04')
+        idx += 1
+        return [device_info], idx, current_offset, 1
+
+    def xml_describe_1A04(self, name, current_offset, asAux=''):
+        current_offset = align_mb(current_offset, '1A04')
+        if asAux:
+            device_info = f"(nTypCode := 16#1A04, sName := '{name}', nOffset := {current_offset}, asAux := {asAux}),"
+        else:
+            device_info = f"(nTypCode := 16#1A04, sName := '{name}', nOffset := {current_offset}),"
+        current_offset = get_next_mb(current_offset, '1A04')
+        return [device_info], current_offset
+
+    def xml_define_1201(self, name, idx, current_offset):
+        current_offset = align_mb(current_offset, '1201')
+        device_info = f"{name} AT %MB{current_offset}: ST_1201;"
+        current_offset = get_next_mb(current_offset, '1201')
+        idx += 1
+        return [device_info], idx, current_offset, 1
+
+    def xml_describe_1201(self, name, current_offset):
+        current_offset = align_mb(current_offset, '1201')
+        device_info = f"(nTypCode := 16#1201, sName := '{name}', nOffset := {current_offset}),"
+        current_offset = get_next_mb(current_offset, '1201')
+        return [device_info], current_offset
+
+    def xml_define_1204(self, name, idx, current_offset):
+        current_offset = align_mb(current_offset, '1204')
+        device_info = f"{name} AT %MB{current_offset}: ST_1204;"
+        current_offset = get_next_mb(current_offset, '1204')
+        idx += 1
+        return [device_info], idx, current_offset, 1
+
+    def xml_describe_1204(self, name, current_offset):
+        current_offset = align_mb(current_offset, '1204')
+        device_info = f"(nTypCode := 16#1204, sName := '{name}', nOffset := {current_offset}, nUnit := 16#F711),"
+        current_offset = get_next_mb(current_offset, '1204')
         return [device_info], current_offset
 
     def xml_define_1B08(self, current_offset):
@@ -328,6 +381,28 @@ class DeviceCollection:
         else:
             raise NotImplementedError
 
+    def build_ptp_define(self, idx, current_offset):
+        device_info = []
+        ptp_offset, idx, current_offset, num_new_devices = self.xml_define_1A04("stPTPOffset", idx, current_offset)
+        ptp_state, idx, current_offset, num_new_devices = self.xml_define_1A04("stPTPState", idx, current_offset)
+        ptp_sync, idx, current_offset, num_new_devices = self.xml_define_1201("stPTPSyncSeqNum", idx, current_offset)
+        ptp_error, idx, current_offset, num_new_devices = self.xml_define_1A04("stPTPErrorStatus", idx, current_offset)
+        sys_time, idx, current_offset, num_new_devices = self.xml_define_1204("stSystemUTCtime", idx, current_offset)
+        device_info.extend([ptp_offset[0], ptp_state[0], ptp_sync[0], ptp_error[0], sys_time[0], ""])
+        return device_info, idx, current_offset
+
+    def build_ptp_describe(self, current_offset):
+        device_info = []
+        ptp_offset, current_offset = self.xml_describe_1A04("PTPOffset#0", current_offset)
+        ptp_state, current_offset = self.xml_describe_1A04("PTPState#0", current_offset)
+        ptp_sync, current_offset = self.xml_describe_1201("PTPSyncSeqNum#0", current_offset)
+        ptp_error, current_offset = self.xml_describe_1A04("PTPErrorStatus#0", current_offset,
+            asAux="[(''), (''), (''), (''), (''), (''), (''), (''), (''), (''), ('NotFullySynched'), ('NotSynchronized'),('NotPTPslave'), ('NotPTPv2'), ('RdDiagError'), ('CableNotConnected_PTPnotStarted'), (''), (''), (''),(''), (''), (''), (''), ('')]"
+        )
+        sys_time, current_offset = self.xml_describe_1204("SystemUTCtime#0", current_offset)
+        device_info.extend([ptp_offset[0], ptp_state[0], ptp_sync[0], ptp_error[0], sys_time[0]])
+        return device_info, current_offset
+
     def build_definition(self, devices):
         device_definitions = []
         idx = 1
@@ -353,9 +428,16 @@ class DeviceCollection:
             num_devices += num_new_devices
             device_definitions.append(device_info)
 
+        if devices[0].ptp:
+            ptp_info, new_idx, curr_offset = self.build_ptp_define(idx, curr_offset)
+            idx = new_idx
+            num_devices += 5
+            device_definitions.extend(ptp_info)
+
         device_info, curr_offset, num_new_devices = self.xml_define_1802(curr_offset)
         num_devices += num_new_devices
         device_definitions.append(device_info)
+
         return device_definitions, num_devices, pneumatic_exists
 
     def build_description(self, devices, num_devices, pneumatic_exists):
@@ -383,8 +465,13 @@ class DeviceCollection:
             device_info, curr_offset = self.xml_describe_1B08(curr_offset)
             device_description.append(device_info)
 
+        if devices[0].ptp:
+            ptp_info, curr_offset = self.build_ptp_describe(curr_offset)
+            device_description.extend(ptp_info)
+
         device_info, curr_offset = self.xml_describe_1802(curr_offset, is_last=True)
         device_description.append(device_info)
+
         device_description[-1] = device_description[-1].rstrip(',')  # Remove the comma from the last device entry
         return device_description
 
@@ -458,13 +545,13 @@ class DeviceCollection:
 
             # Filter devices with pv_name and mc_axis_nc not None
             # devices = [device for device in devices if device.pv_name is not None and device.mc_axis_nc is not None]
-            # num_devices = len(devices)
+            num_devices = len(devices)
 
             # find the maximum number of devices per axis type
-            pn_devs = [device for device in devices if device.mc_axis_pn is not None]
-            nc_devs = [device for device in devices if device.mc_axis_nc is not None]
-
-            num_devices = max(len(pn_devs), len(nc_devs))
+            # pn_devs = [device for device in devices if device.mc_axis_pn is not None]
+            # nc_devs = [device for device in devices if device.mc_axis_nc is not None]
+            #
+            # num_devices = max(len(pn_devs), len(nc_devs))
 
 
             # Add commands for EPICS environment setup
@@ -491,15 +578,16 @@ class DeviceCollection:
             # Add commands for each device
             spare_nc_idx = 1
             spare_pn_idx = 1
+            idx = 1
             for device in devices:
                 if device.mc_axis_nc is not None:
                     commands.extend([
                         '#',
-                        f'# AXIS {device.mc_axis_nc}',
+                        f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
                         f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else f"Spare-AXIS-{spare_nc_idx}"})")',
-                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={device.mc_axis_nc})")',
+                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={idx})")',
                         'epicsEnvSet("RAWENCSTEP_ADEL", 0)',
                         'epicsEnvSet("RAWENCSTEP_MDEL", 0)',
                         '< ethercatmcIndexerAxis.iocsh',
@@ -508,20 +596,22 @@ class DeviceCollection:
                         # 'iocshLoad("$(ethercatmc_DIR)ethercatmcAxisdebug.iocsh")',
                         ''
                     ])
+                    idx += 1
                     if device.pv_name is None:
                         spare_nc_idx += 1
                 elif device.mc_axis_pn is not None:
                     commands.extend([
                         '#',
-                        f'# SHUTTER {device.mc_axis_pn}',
+                        f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
                         f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else f"Spare-SHT-{spare_pn_idx}"})")',
-                        f'epicsEnvSet("SHT_NO",         "$(SM_SHT_NO={device.mc_axis_pn})")',
+                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={idx})")',
                         '< ethercatmcShutter.iocsh',
                         # 'iocshLoad("$(ethercatmc_DIR)ethercatmcShutter.iocsh")',
                         ''
                     ])
+                    idx += 1
                     if device.pv_name is None:
                         spare_pn_idx += 1
 

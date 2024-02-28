@@ -25,7 +25,7 @@ def test_can_read_excel_file(reader):
 def test_can_read_sheet_by_index(reader):
     # Given
     sheet_index = 0
-    columns = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15]
+    columns = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
 
     # When
     result, instrument_name = reader.read_sheet_by_index(sheet_index, columns)
@@ -43,7 +43,7 @@ def test_can_read_sheet_by_index(reader):
 def test_dataframe_filtered(reader):
     # Given
     sheet_index = 0
-    columns = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15]
+    columns = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
 
     # When
     result, _ = reader.read_sheet_by_index(sheet_index, columns)

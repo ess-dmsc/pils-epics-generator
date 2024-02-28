@@ -5,6 +5,7 @@ from src.device import Device, DeviceCollection
 
 import pytest
 
+COLUMNS_INDEX = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
 
 def data_file_path(filename):
     return os.path.join(os.path.dirname(__file__), filename)
@@ -12,13 +13,7 @@ def data_file_path(filename):
 @pytest.fixture
 def reader():
     filepath = data_file_path("test.xlsx")
-    return ExcelReader(filepath).read_sheet_by_index(0, [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15])
-
-@pytest.fixture
-def reader_nm():
-    filepath = data_file_path("no_motor_test.xlsx")
-    return ExcelReader(filepath).read_sheet_by_index(0, [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15])
-
+    return ExcelReader(filepath).read_sheet_by_index(0, COLUMNS_INDEX)
 
 
 @pytest.fixture
@@ -34,8 +29,11 @@ def mock_dataframe():
         'axis_description': ['Motor Axis 1', 'Pneumatic Axis 1', 'Temperature Sensor'],
         'pv_name': ['IOC:MOTOR1', 'IOC:PNEU1', 'IOC:TEMP1'],
         'mc_unit': [1, 1, 1],
+        'ptp': ['yes', 'yes', 'yes'],
         'mc_axis_nc': [1, None, None],
         'mc_axis_pn': [None, 1, None],
+        'pils_name': ['Motor', 'Pneumatic', 'Temperature'],
+        'pils_unit': ['mm', '', ''],
         'has_temp': ['x', '', 'x'],
         'temp_units': ['c', '', 'c'],
         'extra_dev': ['', '', 'x'],
@@ -54,21 +52,17 @@ def test_can_create_device_collection_xml(reader):
     assert True
 
 
-def test_can_create_without_motor_and_extra_devices(reader_nm):
-    df, instrument_name = reader_nm
-    device_collection = DeviceCollection(instrument_name)
-    device_collection.from_dataframe(df)
-    assert True
-
-
 def test_device_collection_add_device(device_collection):
     device = Device(
         description="Test Device",
         pv_name="PV001",
         mc_unit=1,
+        ptp=False,
         mc_axis_nc=1,
         mc_axis_pn=None,
         device_type='5010',
+        pils_name='Test',
+        pils_unit='mm',
         has_temp=False,
         temp_units='',
         has_extra=False,
@@ -99,9 +93,12 @@ def test_xml_define_5010(device_collection):
         description="Motor Device",
         pv_name="PV_Motor",
         mc_unit=1,
+        ptp=False,
         mc_axis_nc=1,
         mc_axis_pn=None,
         device_type='5010',
+        pils_name='Motor',
+        pils_unit='mm',
         has_temp=True,
         temp_units='c',
         has_extra=False,
@@ -129,9 +126,12 @@ def test_xml_describe_5010(device_collection):
         description="Motor Device",
         pv_name="PV_Motor",
         mc_unit=1,
+        ptp=False,
         mc_axis_nc=1,
         mc_axis_pn=None,
         device_type='5010',
+        pils_name='Motor',
+        pils_unit='mm',
         has_temp=True,
         temp_units='c',
         has_extra=False,
@@ -141,10 +141,19 @@ def test_xml_describe_5010(device_collection):
     )
     device_collection.add_device(device)
     expected_xml_list = [
-        "(nTypCode := 16#5010, sName := GVL.astAxes[1].stDescription.sAxisName, nOffset := 128, nUnit := GVL.astAxes[1].stDescription.eUnit, asAUX := [(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('InterlockFwd'),('InterlockBwd'),('localMode'),('inTargetPos'),('homeSensor'),('notHomed'),('enabled')], nFlags := 1),",
+        "(nTypCode := 16#5010, sName := 'Motor', nOffset := 128, nUnit := 16#FD04, asAUX := [(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('InterlockFwd'),('InterlockBwd'),('localMode'),('inTargetPos'),('homeSensor'),('notHomed'),('enabled')], nFlags := 1),",
         "(nTypCode := 16#1302, sName := 'Temp#1', nOffset := 160, nUnit := 16#0009),"
     ]
     xml_output, current_offset = device_collection.xml_describe_5010(device, 128)
 
     assert current_offset == 164
     assert xml_output == expected_xml_list
+
+
+def test_write_xml(reader):
+    df, instrument_name = reader
+
+    device_collection = DeviceCollection(instrument_name)
+    device_collection.from_dataframe(df)
+
+    device_collection.to_xml()

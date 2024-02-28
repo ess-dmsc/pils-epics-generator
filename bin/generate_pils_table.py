@@ -10,6 +10,9 @@ from src.device import DeviceCollection
 from src.reader import ExcelReader
 
 
+COLUMNS_INDEX = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
+
+
 def main():
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Generate XML configuration for devices from an Excel file.")
@@ -23,7 +26,7 @@ def main():
 
     # Read devices from the Excel file
     excel_reader = ExcelReader(args.path)
-    df, instrument_name = excel_reader.read_sheet_by_index(0, [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15])
+    df, instrument_name = excel_reader.read_sheet_by_index(0, COLUMNS_INDEX)
 
     # Create a DeviceCollection and populate it from the DataFrame
     device_collection = DeviceCollection(instrument_name)
@@ -35,7 +38,7 @@ def main():
 
     if args.ioc:
         # Generate IOC st.cmd from the device collection
-        device_collection.to_st_cmd(ioc_ip='10.102.10.49', plc_ip='10.102.10.22')
+        device_collection.to_st_cmd(ioc_ip='10.102.10.49', plc_ip='10.102.10.44') # TODO: Remove hardcoded IPs
 
 
 if __name__ == "__main__":
