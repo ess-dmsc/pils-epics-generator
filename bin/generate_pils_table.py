@@ -20,9 +20,15 @@ def main():
 
     parser.add_argument("--pils", help="Boolean flag if you want to generate PILS tables")
     parser.add_argument("--ioc", help="Boolean flag if you want to generate IOC st.cmd")
+    parser.add_argument("--ioc-ip", help="IP address of the IOC")
+    parser.add_argument("--plc-ip", help="IP address of the PLC")
 
     # Parse arguments from the command line
     args = parser.parse_args()
+
+    # ioc-ip and plc-ip are required if --ioc is specified
+    if args.ioc and (args.ioc_ip is None or args.plc_ip is None):
+        parser.error("--ioc requires --ioc-ip and --plc-ip")
 
     # Read devices from the Excel file
     excel_reader = ExcelReader(args.path)
@@ -38,7 +44,7 @@ def main():
 
     if args.ioc:
         # Generate IOC st.cmd from the device collection
-        device_collection.to_st_cmd(ioc_ip='10.102.10.49', plc_ip='10.102.10.44') # TODO: Remove hardcoded IPs
+        device_collection.to_st_cmd(ioc_ip=args.ioc_ip, plc_ip=args.plc_ip)
 
 
 if __name__ == "__main__":
