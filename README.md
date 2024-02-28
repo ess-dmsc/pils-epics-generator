@@ -94,12 +94,20 @@ Before running the PILS EPICS Generator, ensure you have the following installed
 To generate an XML configuration file from an Excel file, use the `generate_pils_table.py` script located in the `bin` directory. You must specify the path to the Excel file containing the device data using the `-p` or `--path` argument.
 
 ```bash
-python bin/generate_pils_table.py -p /path/to/your/excel_file.xlsx
+python bin/generate_pils_table.py -p /path/to/your/excel_file.xlsx --pils 1
 ```
+
+If you want to generate the EPICS st.cmd files run:
+
+```bash
+python bin/generate_pils_table.py -p tests/test.xlsx --ioc 1 --ioc-ip '10.102.10.49' --plc-ip '10.102.10.44'
+```
+
+however, it currently puts the same plc ip in all the st.cmd files, so if you have multiple PLCs you will need to manually change the IP in the st.cmd files. This is TODO.
 
 ### Excel File Format
 
-Look at the file tests/test.xlsx or tests/no_motor_test.xlsx files to see the expected Excel file structure
+Look at the file tests/test.xlsx files to see the expected Excel file structure
 
 Each row in the Excel file represents a device with its configurations and properties.
 
