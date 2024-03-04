@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 from xml.etree.ElementTree import Element, SubElement, ElementTree
 import xml.dom.minidom
@@ -61,6 +63,78 @@ pils_units = {
     'mm': '16#FD04',
     'degree': '16#000C',
 }
+
+BASE_CSS = """
+  <widget typeId="org.csstudio.opibuilder.widgets.ActionButton" version="2.0.0">
+    <actions hook="false" hook_all="false">
+      <action type="OPEN_DISPLAY">
+        <path>motor-6.opi</path>
+        <macros>
+          <include_parent_macros>true</include_parent_macros>
+          <PREFIX>YMIR-MCS1:MC-MCU-01:</PREFIX>
+          <P>YMIR-</P>
+          <M1>mcs1:MC-Spare-01:Mtr</M1>
+          <M2>mcs1:MC-Spare-02:Mtr</M2>
+          <M3>ColSl1:MC-SlYp-01:Mtr</M3>
+          <M4>ColSl1:MC-SlYm-01:Mtr</M4>
+          <M5>ColSl1:MC-SlZp-01:Mtr</M5>
+          <M6>ColSl1:MC-SlZm-01:Mtr</M6>
+          <R1>mcs1:MC-Spare-01:Mtr-</R1>
+          <R2>mcs1:MC-Spare-02:Mtr-</R2>
+          <R3>ColSl1:MC-SlYp-01:Mtr-</R3>
+          <R4>ColSl1:MC-SlYm-01:Mtr-</R4>
+          <R5>ColSl1:MC-SlZp-01:Mtr-</R5>
+          <R6>ColSl1:MC-SlZm-01:Mtr-</R6>
+        </macros>
+        <mode>1</mode>
+        <description></description>
+      </action>
+    </actions>
+    <alarm_pulsing>false</alarm_pulsing>
+    <backcolor_alarm_sensitive>false</backcolor_alarm_sensitive>
+    <background_color>
+      <color red="240" green="240" blue="240" />
+    </background_color>
+    <border_alarm_sensitive>false</border_alarm_sensitive>
+    <border_color>
+      <color red="0" green="128" blue="255" />
+    </border_color>
+    <border_style>0</border_style>
+    <border_width>1</border_width>
+    <enabled>true</enabled>
+    <font>
+      <opifont.name fontName=".SF NS Text" height="11" style="0" pixels="false">Default</opifont.name>
+    </font>
+    <forecolor_alarm_sensitive>false</forecolor_alarm_sensitive>
+    <foreground_color>
+      <color red="0" green="0" blue="0" />
+    </foreground_color>
+    <height>31</height>
+    <image></image>
+    <name>Action Button_15</name>
+    <push_action_index>0</push_action_index>
+    <pv_name></pv_name>
+    <pv_value />
+    <rules />
+    <scale_options>
+      <width_scalable>true</width_scalable>
+      <height_scalable>true</height_scalable>
+      <keep_wh_ratio>false</keep_wh_ratio>
+    </scale_options>
+    <scripts />
+    <style>0</style>
+    <text>YMIR-MCS1</text>
+    <toggle_button>false</toggle_button>
+    <tooltip>$(pv_name)
+$(pv_value)</tooltip>
+    <visible>true</visible>
+    <widget_type>Action Button</widget_type>
+    <width>180</width>
+    <wuid>-23224cdf:15ca5e28b9e:-7fd5</wuid>
+    <x>0</x>
+    <y>0</y>
+  </widget>
+"""
 
 
 def get_next_mb(memory_offset: int, device_type: str) -> int:
@@ -536,9 +610,20 @@ class DeviceCollection:
             with open(xml_file_path, 'w', encoding='utf-8') as file:
                 file.write(pretty_xml_str)
 
-    def to_st_cmd(self, ioc_ip, plc_ip):
+    def format_spare_motor(self, mc_unit, idx):
+        if idx < 10:
+            return f"mcs{mc_unit}:MC-Spare-0{idx}"
+        return f"mcs{mc_unit}:MC-Spare-{idx}"
+
+    def format_spare_pneumatic(self, mc_unit, idx):
+        if idx < 10:
+            return f"mcs{mc_unit}:MC-Spare-0{idx}"
+        return f"mcs{mc_unit}:MC-Spare-{idx}"
+
+    def to_st_cmd(self, ioc_ip, plc_ip, return_it=False):
         for mc_unit, devices in self.devices_by_unit.items():
-            st_cmd_file_path = f"st_cmd_mc_unit_{mc_unit}.st"
+            st_cmd_file_path = f"st.{self.instrument.lower()}-mcs{mc_unit}.iocsh"
+
 
             # Use a list to collect command lines
             commands = []
@@ -556,15 +641,19 @@ class DeviceCollection:
 
             # Add commands for EPICS environment setup
             commands.extend([
-                'require ethercatmc,USER',
+                'require calc',
+                'require ethercatmc',
                 '',
-                f'epicsEnvSet("MOTOR_PORT",    "$(SM_MOTOR_PORT=MCU{mc_unit})")',
-                f'epicsEnvSet("IPADDR",        "$(SM_IPADDR={plc_ip})")',
-                f'epicsEnvSet("IPPORT",        "$(SM_IPPORT=48898)")',
-                f'epicsEnvSet("AMSNETIDIOC",   "$(SM_AMSNETID={ioc_ip}.1.1)")',
-                f'epicsEnvSet("ASYN_PORT",     "$(SM_ASYN_PORT=MC_CPU1)")',
-                f'epicsEnvSet("PREFIX",        "$(SM_PREFIX={self.instrument.upper()}-)")',
-                'epicsEnvSet("PREC",          "$(SM_PREC=3)")',
+                f'epicsEnvSet("MOTOR_PORT",    "MCU1")',
+                f'epicsEnvSet("IPADDR",        "{plc_ip}")',
+                f'epicsEnvSet("IPPORT",        "48898")',
+                f'epicsEnvSet("AMSNETIDIOC",   "{ioc_ip}.1.1")',
+                f'epicsEnvSet("ASYN_PORT",     "MC_CPU1")',
+                # '# prefix for all, system in ESS naming convention',
+                f'epicsEnvSet("SYSPFX",        "{self.instrument.upper()}-")',
+                # '# prefix for all MCU-ish records like PTP',
+                f'epicsEnvSet("REG_NAME",      "MCS{mc_unit}:MC-MCU-0{mc_unit}:")',
+                'epicsEnvSet("PREC",          "3")',
                 f'epicsEnvSet("ECM_NUMAXES",     "{num_devices}")',
                 f'epicsEnvSet("ECM_OPTIONS",   "adsPort=852;amsNetIdRemote={plc_ip}.1.1;amsNetIdLocal=$(AMSNETIDIOC)")',
                 '',
@@ -572,6 +661,7 @@ class DeviceCollection:
                 'epicsEnvSet("ECM_IDLEPOLLPERIOD",   "0")',
                 '',
                 '< ethercatmcController.iocsh',
+                # 'iocshLoad("$(ethercatmc_DIR)ethercatmcController.iocsh")',
                 ''
             ])
 
@@ -586,10 +676,10 @@ class DeviceCollection:
                         f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
-                        f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else device.pils_name})")',
-                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={idx})")',
-                        'epicsEnvSet("RAWENCSTEP_ADEL", 0)',
-                        'epicsEnvSet("RAWENCSTEP_MDEL", 0)',
+                        f'epicsEnvSet("AXIS_NAME",       "{device.pv_name if device.pv_name is not None else self.format_spare_motor(mc_unit, spare_nc_idx)}:Mtr")',
+                        f'epicsEnvSet("AXIS_NO",         "{idx}")',
+                        'epicsEnvSet("RAWENCSTEP_ADEL", "0")',
+                        'epicsEnvSet("RAWENCSTEP_MDEL", "0")',
                         '< ethercatmcIndexerAxis.iocsh',
                         '< ethercatmcAxisdebug.iocsh',
                         # 'iocshLoad("$(ethercatmc_DIR)ethercatmcIndexerAxis.iocsh")',
@@ -605,8 +695,8 @@ class DeviceCollection:
                         f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
-                        f'epicsEnvSet("MOTOR_NAME",      "$(SM_MOTOR_NAME={device.pv_name if device.pv_name is not None else device.pils_name})")',
-                        f'epicsEnvSet("AXIS_NO",         "$(SM_AXIS_NO={idx})")',
+                        f'epicsEnvSet("AXIS_NAME",       "{device.pv_name if device.pv_name is not None else self.format_spare_pneumatic(mc_unit, spare_pn_idx)}:Sht")',
+                        f'epicsEnvSet("AXIS_NO",         "{idx}")',
                         '< ethercatmcShutter.iocsh',
                         # 'iocshLoad("$(ethercatmc_DIR)ethercatmcShutter.iocsh")',
                         ''
@@ -619,10 +709,57 @@ class DeviceCollection:
             commands.extend([
                 'epicsEnvSet("MOVINGPOLLPERIOD", "9")',
                 'epicsEnvSet("IDLEPOLLPERIOD",   "100")',
-                'ethercatmcStartPoller("$(MOTOR_PORT)", "$(MOVINGPOLLPERIOD)", "$(IDLEPOLLPERIOD)")'
+                'ethercatmcStartPoller("$(MOTOR_PORT)", "$(MOVINGPOLLPERIOD)", "$(IDLEPOLLPERIOD)")',
+                ''
             ])
 
             # Join the command lines with newline characters and write to file
             command_string = "\n".join(commands)
+
+            if return_it:
+                return command_string
+
             with open(st_cmd_file_path, 'w') as file:
                 file.write(command_string)
+
+    def to_opi(self):
+        for mc_unit, devices in self.devices_by_unit.items():
+            devices = [device for device in devices if device.mc_axis_nc is not None]
+            num_devices = len(devices)
+
+            file_name = 'base_motor.mid'
+            file_path = os.path.join(os.path.dirname(__file__), file_name)
+
+            macros = [
+                f'<PREFIX>{self.instrument.upper()}-MCS{mc_unit}:MC-MCU-0{mc_unit}:</PREFIX>',
+                f'<P>YMIR-</P>'
+            ]
+            for idx, device in enumerate(devices, start=1):
+                name = f"{device.pv_name}:Mtr" if device.pv_name is not None else f"{self.format_spare_motor(mc_unit, idx)}:Mtr"
+                macros.append(f'<M{idx}>{name}</M{idx}>')
+            for idx, device in enumerate(devices, start=1):
+                name = f"{device.pv_name}:Mtr" if device.pv_name is not None else f"{self.format_spare_motor(mc_unit, idx)}:Mtr"
+                macros.append(f'<R{idx}>{name}-</R{idx}>')
+
+            with open(file_path, 'r') as file:
+                content = file.readlines()
+
+            for i, line in enumerate(content):
+                indent_length = len(line) - len(line.lstrip())
+                if "$MACROS$" in line:
+                    line = line.lstrip()
+                    line = line.replace("$MACROS$", "\n".join([f"{' '*indent_length}{macro}" for macro in macros]))
+                    content[i] = line
+
+                if "$NUM_DEVS$" in line:
+                    line = line.replace("$NUM_DEVS$", str(num_devices))
+                    content[i] = line
+
+                if "$MCU_NAME$" in line:
+                    line = line.replace("$MCU_NAME$", f"{self.instrument.upper()}-MCS{mc_unit}")
+                    content[i] = line
+
+            final_string = "".join(content)
+
+            with open(f"IOC-{self.instrument.upper()}-MCS{mc_unit}.mid", 'w') as file:
+                file.write(final_string)

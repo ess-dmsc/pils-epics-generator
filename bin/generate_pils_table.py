@@ -20,6 +20,7 @@ def main():
 
     parser.add_argument("--pils", help="Boolean flag if you want to generate PILS tables")
     parser.add_argument("--ioc", help="Boolean flag if you want to generate IOC st.cmd")
+    parser.add_argument("--opi", help="Boolean flag if you want to generate OPI css")
     parser.add_argument("--ioc-ip", help="IP address of the IOC")
     parser.add_argument("--plc-ip", help="IP address of the PLC")
 
@@ -45,6 +46,10 @@ def main():
     if args.ioc:
         # Generate IOC st.cmd from the device collection
         device_collection.to_st_cmd(ioc_ip=args.ioc_ip, plc_ip=args.plc_ip)
+
+    if args.opi:
+        # Generate OPI css from the device collection
+        device_collection.to_opi()
 
 
 if __name__ == "__main__":
