@@ -171,7 +171,7 @@ class Device:
     Represents a device with its configurations and properties.
     """
 
-    def __init__(self, description: str, pv_name: str, mc_unit: int, ptp: bool, mc_axis_nc: int, mc_axis_pn: int,
+    def __init__(self, description: str, pv_name: str, pv_root : str, mc_unit: int, ptp: bool, mc_axis_nc: int, mc_axis_pn: int,
                  device_type: str, pils_name: str, pils_unit: str, has_temp: bool = False, temp_units: str = 'c',
                  has_extra: bool = False, extra_name: str = '', extra_type: str = '', extra_desc: str = '') -> None:
         """
@@ -192,6 +192,7 @@ class Device:
         """
         self.description = description
         self.pv_name = pv_name
+        self.pv_root = pv_root
         self.mc_unit = mc_unit
         self.ptp = ptp
         self.mc_axis_nc = mc_axis_nc
@@ -229,6 +230,7 @@ class Device:
         return cls(
             description=row['axis_description'],
             pv_name=row['pv_name'] if not row['pv_name'] == 0 else None,
+            pv_root=row['pv_root'] if not pd.isna(row['pv_root']) else '',
             mc_unit=int(row['mc_unit']),
             ptp=True if str(row['ptp']).lower() == 'yes' else False,
             mc_axis_nc=int(row['mc_axis_nc']) if not pd.isna(row['mc_axis_nc']) else None,
@@ -614,13 +616,13 @@ class DeviceCollection:
 
     def format_spare_motor(self, mc_unit, idx):
         if idx < 10:
-            return f"mcs{mc_unit}:MC-Spare-0{idx}"
-        return f"mcs{mc_unit}:MC-Spare-{idx}"
+            return f"MC-Spare-0{idx}"
+        return f"MC-Spare-{idx}"
 
     def format_spare_pneumatic(self, mc_unit, idx):
         if idx < 10:
-            return f"mcs{mc_unit}:MC-Spare-0{idx}"
-        return f"mcs{mc_unit}:MC-Spare-{idx}"
+            return f"MC-Spare-0{idx}"
+        return f"MC-Spare-{idx}"
 
     def to_st_cmd(self, ioc_ip, plc_ip, return_it=False):
         for mc_unit, devices in self.devices_by_unit.items():
