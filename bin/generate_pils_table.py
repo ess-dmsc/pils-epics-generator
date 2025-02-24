@@ -8,15 +8,14 @@ sys.path.append(project_root)
 
 from src.device import DeviceCollection
 from src.reader import ExcelReader
-
-
-COLUMNS_INDEX = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
+from src.reader import COLUMNS_INDEX
 
 
 def main():
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Generate XML configuration for devices from an Excel file.")
     parser.add_argument("-p", "--path", help="Path to the Excel file containing device data.", required=True)
+    parser.add_argument("-s", "--sheet", help="Sheet index to read from the Excel file.", type=int, required=True)
 
     parser.add_argument("--pils", help="Boolean flag if you want to generate PILS tables")
     parser.add_argument("--ioc", help="Boolean flag if you want to generate IOC st.cmd")
@@ -33,7 +32,7 @@ def main():
 
     # Read devices from the Excel file
     excel_reader = ExcelReader(args.path)
-    df, instrument_name = excel_reader.read_sheet_by_index(0, COLUMNS_INDEX)
+    df, instrument_name = excel_reader.read_sheet_by_index(args.sheet, COLUMNS_INDEX)
 
     # Create a DeviceCollection and populate it from the DataFrame
     device_collection = DeviceCollection(instrument_name)

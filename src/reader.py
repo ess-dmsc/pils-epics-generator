@@ -2,7 +2,31 @@ import pandas as pd
 from typing import List, Tuple
 
 
-COL_NAMES = ["axis_description", "fbs_description", "pv_name", "mc_unit", "ptp", "mc_axis_nc", "mc_axis_pn", "pils_name", "pils_unit", "has_temp", "temp_units", "extra_dev", "extra_name", "extra_type", "extra_desc"]
+# COL_NAMES = ["axis_description", "fbs_description", "pv_name", "mc_unit", "ptp", "mc_axis_nc", "mc_axis_pn", "pils_name", "pils_unit", "has_temp", "temp_units", "extra_dev", "extra_name", "extra_type", "extra_desc"]
+# COLUMNS_INDEX = [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18]
+
+
+COLUMN_INFO = [
+    (1, "axis_description"),
+    (2, "pv_name"),
+    (3, "fbs_description"),
+    (4, "mc_unit"),
+    (6, "pv_root"),
+    (7, "ptp"),
+    (8, "axis_index"),
+    (9, "actuator_type"),
+    (10, "pils_name"),
+    (11, "pils_unit"),
+    (12, "has_temp"),
+    (13, "temp_units"),
+    (14, "extra_dev"),
+    (15, "extra_name"),
+    (16, "extra_type"),
+    (17, "extra_desc")
+]
+
+COLUMNS_INDEX = [info[0] for info in COLUMN_INFO]
+COL_NAMES = [info[1] for info in COLUMN_INFO]
 
 
 class ExcelReader:
@@ -45,9 +69,15 @@ class ExcelReader:
         df = pd.read_excel(self.file_path, sheet_name=sheet_name, usecols=columns)
         df.columns = COL_NAMES
 
+        df = self._prep_ptp(df)
         df = self._fill_mc_unit(df)
         df = self._fill_ptp(df)
+        df = self._fill_pv_root(df)
         df = self._filter_dataframe(df)
+        df = self._build_nc_pn(df)
+        # df = self._filter_non_axis_rows(df)
+        df.index = range(len(df.index))
+        print(df.to_string())
         return df, instrument_name
 
     def _fill_mc_unit(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -62,6 +92,21 @@ class ExcelReader:
         df['mc_unit'] = df['mc_unit'].ffill()
         return df
 
+    def _prep_ptp(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Prepare the ptp column in the DataFrame.
+
+        If a row has an `mc_unit` value (not NaN and not 0), and `ptp` is missing, it should be set to 'no'.
+        If `ptp` is explicitly 'yes', it remains unchanged.
+
+        :param df: The DataFrame to prepare.
+        :return: The updated DataFrame.
+        """
+        valid_mc_unit = df['mc_unit'].apply(lambda x: pd.notna(x) and x != 0)
+        df.loc[valid_mc_unit & df['ptp'].isna(), 'ptp'] = 'no'
+
+        return df
+
     def _fill_ptp(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Fill in missing ptp values in the DataFrame.
@@ -74,6 +119,37 @@ class ExcelReader:
         df['ptp'] = df['ptp'].ffill()
         return df
 
+    def _fill_pv_root(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Fill in missing pv_root values in the DataFrame.
+
+        :param df: The DataFrame to fill.
+        :return: The filled DataFrame.
+        """
+        # Fill in missing pv_root values for all zeroes
+        df['pv_root'] = df['pv_root'].replace(0, pd.NA)
+        df['pv_root'] = df['pv_root'].ffill()
+        return df
+
+    def _build_nc_pn(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Build the nc and pn columns in the DataFrame.
+        If the actuator_type is "Electrical", then the nc column should be set
+        to the axis_index and the pn column should be set to None.
+        If the actuator_type is "Pneumatic", then the pn column should be set
+        to the axis_index and the nc column should be set to None.
+
+        :param df: The DataFrame to fill.
+        :return: The filled DataFrame.
+        """
+        df['mc_axis_nc'] = df['axis_index']
+        df['mc_axis_pn'] = df['axis_index']
+        df.loc[df['actuator_type'] == 'Electrical', 'mc_axis_pn'] = pd.NA
+        df.loc[df['actuator_type'] == 'Pneumatic', 'mc_axis_nc'] = pd.NA
+        df.loc[df['actuator_type'] == 0, 'mc_axis_nc'] = pd.NA
+        df.loc[df['actuator_type'] == 0, 'mc_axis_pn'] = pd.NA
+        return df
+
     def _filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Filters the DataFrame to remove rows with missing values.
@@ -81,18 +157,21 @@ class ExcelReader:
         :param df: The DataFrame to filter.
         :return: The filtered DataFrame.
         """
-
-        # remove the third row because it is an example
-        df = df.drop(3)
-        # remove all rows where mc_axis is not an integer or is missing or there is no extra dev
-        df = df[(df['mc_axis_nc'].apply(lambda x: isinstance(x, int) and x > 0)) | (
-            df['mc_axis_pn'].apply(lambda x: isinstance(x, int) and x > 0)) | (
-            df['extra_dev'].apply(lambda x: isinstance(x, str) and x == 'x'))
-        ]
-        # remove all rows where the pv_name is missing
-        # df = df[df['pv_name'].apply(lambda x: isinstance(x, str))]
+        df = df.drop([0, 1, 2, 3, 4])
+        df['axis_index'] = df['axis_index'].replace(0, pd.NA)
+        df = df.dropna(subset=['axis_index'])
         return df
 
+    def _filter_non_axis_rows(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filters the DataFrame to remove rows that are not associated with a valid NC or PN axis.
+        Keeps only rows where either 'mc_axis_nc' or 'mc_axis_pn' is present (not NaN).
+
+        :param df: The DataFrame to filter.
+        :return: The filtered DataFrame.
+        """
+        df = df.dropna(subset=['mc_axis_nc', 'mc_axis_pn'], how='all')
+        return df
 
     def _get_sheet_name_by_index(self, sheet_index: int) -> str:
         """

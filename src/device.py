@@ -221,6 +221,9 @@ class Device:
         if not is_motor and not is_pneumatic:
             device_type = str(row['extra_type']) if not pd.isna(row['extra_type']) else None
             if device_type is None:
+                device_type = '1302' if not pd.isna(row['has_temp']) else None
+
+            if device_type is None:
                 raise ValueError(f"Device type {row['extra_type']} not defined")
 
         return cls(
@@ -233,7 +236,7 @@ class Device:
             device_type=device_type,
             pils_name=row['pils_name'],
             pils_unit=row['pils_unit'] if not pd.isna(row['pils_unit']) else 'mm',
-            has_temp=True if row['has_temp'] == 'x' else False,
+            has_temp=True if not pd.isna(row['has_temp']) else False,
             temp_units=row['temp_units'] if not pd.isna(row['temp_units']) else 'c',
             has_extra=True if not pd.isna(row['extra_dev']) else False,
             extra_name=row['extra_name'] if not pd.isna(row['extra_name']) else '',
@@ -443,7 +446,6 @@ class DeviceCollection:
         return device_info, current_offset
 
     def xml_define_extra(self, device, index, current_offset):
-        print(device.device_type)
         if device.device_type == '1302':
             return self.xml_define_1302(device, index, current_offset)
         else:
