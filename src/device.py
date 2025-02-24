@@ -230,7 +230,7 @@ class Device:
             description=row['axis_description'],
             pv_name=row['pv_name'] if not row['pv_name'] == 0 else None,
             mc_unit=int(row['mc_unit']),
-            ptp=True if row['ptp'] == 'yes' else False,
+            ptp=True if str(row['ptp']).lower() == 'yes' else False,
             mc_axis_nc=int(row['mc_axis_nc']) if not pd.isna(row['mc_axis_nc']) else None,
             mc_axis_pn=int(row['mc_axis_pn']) if not pd.isna(row['mc_axis_pn']) else None,
             device_type=device_type,
@@ -563,7 +563,7 @@ class DeviceCollection:
         declaration = SubElement(gvl, 'Declaration')
         cdata_content = [
             'VAR_GLOBAL',
-            f"sPLCName: STRING[34] := '{self.instrument}_mc_{mc_unit}';",  # TODO: Replace with actual PLC name
+            f"sPLCName: STRING[34] := '{self.instrument.lower()}-mcs{mc_unit}';",  # TODO: Replace with actual PLC name
             f"sPLCVersion: STRING[34] := '{VERSION}';",
             "sPLCAuthor1: STRING[34] := 'ESS Lund';",
             "sPLCAuthor2: STRING[34] := 'ESS Lund';\n",
