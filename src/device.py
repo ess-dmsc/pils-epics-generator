@@ -6,7 +6,7 @@ import pandas as pd
 from xml.etree.ElementTree import Element, SubElement, ElementTree
 import xml.dom.minidom
 
-VERSION = git.Repo(search_parent_directories=True).head.object.hexsha
+VERSION = git.Repo(search_parent_directories=True).git.rev_parse("--short", "HEAD")
 
 pils_device_byte_aligments = {
     '1201':  2,  # Simple discrete input, 16 bit signed integer
