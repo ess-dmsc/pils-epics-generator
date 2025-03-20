@@ -1,10 +1,12 @@
 import os
 
+import git
+
 import pandas as pd
 from xml.etree.ElementTree import Element, SubElement, ElementTree
 import xml.dom.minidom
 
-VERSION = "1.0.0"
+VERSION = git.Repo(search_parent_directories=True).head.object.hexsha
 
 pils_device_byte_aligments = {
     '1201':  2,  # Simple discrete input, 16 bit signed integer
@@ -567,8 +569,8 @@ class DeviceCollection:
             'VAR_GLOBAL',
             f"sPLCName: STRING[34] := '{self.instrument.lower()}-mcs{mc_unit}';",  # TODO: Replace with actual PLC name
             f"sPLCVersion: STRING[34] := '{VERSION}';",
-            "sPLCAuthor1: STRING[34] := 'ESS Lund';",
-            "sPLCAuthor2: STRING[34] := 'ESS Lund';\n",
+            "sPLCAuthor1: STRING[34] := 'https://github.com/';",
+            "sPLCAuthor2: STRING[34] := 'ess-dmsc/pils-epics-generator';\n",
         ]
         return root, declaration, cdata_content
 
