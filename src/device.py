@@ -435,13 +435,13 @@ class DeviceCollection:
 
     def xml_define_1802(self, current_offset):
         current_offset = align_mb(current_offset, '1802')
-        device_info = f"stCabinetMonitoring AT %MB{current_offset}: ST_1802;\n"
+        device_info = f"stCabinetStatus AT %MB{current_offset}: ST_1802;\n"
         current_offset = get_next_mb(current_offset, '1802')
         return device_info, current_offset, 1
 
     def xml_describe_1802(self, current_offset, is_last=False):
         current_offset = align_mb(current_offset, '1802')
-        device_info = f"(nTypCode := 16#1802, sName := 'cabinetMonitoring', nOffset := {current_offset})"
+        device_info = f"(nTypCode := 16#1802, sName := 'Cabinet#0', nOffset := {current_offset}, asAux := [('24VPSFailed'), ('48VPSFailed'), ('MCBError'), ('SPDError'), ('DoorOpen'), ('TempHigh'), ('FuseTripped'), ('EStop'), ('ECMasterError'), ('SlaveNotOP'), ('SlaveMissing'), ('CPULoadHigh'),(''), (''), (''), (''), (''), (''), (''),(''), (''), (''), (''), ('')])"
         if is_last:
             device_info += "];"
         current_offset = get_next_mb(current_offset, '1802')
