@@ -670,6 +670,20 @@ class DeviceCollection:
                 ''
             ])
 
+            # Add the cabinet status
+            commands.extend([
+                '#',
+                '# Cabinet status',
+                '#',
+                'epicsEnvSet("AXIS_NO",         "0")',
+                'epicsEnvSet("R",               "Cabinet")',
+                'epicsEnvSet("DESC",            "Cabinet")',
+                'epicsEnvSet("EGU",             "Cabinet")',
+                # '< ethercatmcCabinet.iocsh',
+                'iocshLoad("$(ethercatmc_DIR)ethercatmcCabinet.iocsh")',
+                ''
+            ])
+
             # Add commands for each device
             spare_nc_idx = 1
             spare_pn_idx = 1
