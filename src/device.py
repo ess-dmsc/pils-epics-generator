@@ -728,8 +728,8 @@ class DeviceCollection:
 
             # Add commands to start the poller
             commands.extend([
-                'epicsEnvSet("MOVINGPOLLPERIOD", "9")',
-                'epicsEnvSet("IDLEPOLLPERIOD",   "100")',
+                'epicsEnvSet("MOVINGPOLLPERIOD", "200")',
+                'epicsEnvSet("IDLEPOLLPERIOD",   "200")',
                 'ethercatmcStartPoller("$(MOTOR_PORT)", "$(MOVINGPOLLPERIOD)", "$(IDLEPOLLPERIOD)")',
                 '',
                 'iocinit()'
