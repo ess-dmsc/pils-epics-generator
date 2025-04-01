@@ -651,6 +651,8 @@ class DeviceCollection:
                 'require calc',
                 'require ethercatmc',
                 '',
+                'iocshLoad("$(essioc_DIR)/common_config.iocsh")',
+                '',
                 f'epicsEnvSet("MOTOR_PORT",    "MCU1")',
                 f'epicsEnvSet("IPADDR",        "{plc_ip}")',
                 f'epicsEnvSet("IPPORT",        "48898")',
