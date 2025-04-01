@@ -651,15 +651,17 @@ class DeviceCollection:
                 'require calc',
                 'require ethercatmc',
                 '',
+                'iocshLoad("$(essioc_DIR)/common_config.iocsh")',
+                '',
                 f'epicsEnvSet("MOTOR_PORT",    "MCU1")',
                 f'epicsEnvSet("IPADDR",        "{plc_ip}")',
                 f'epicsEnvSet("IPPORT",        "48898")',
                 f'epicsEnvSet("AMSNETIDIOC",   "{ioc_ip}.1.1")',
                 f'epicsEnvSet("ASYN_PORT",     "MC_CPU1")',
                 # '# prefix for all, system in ESS naming convention',
-                f'epicsEnvSet("SYSPFX",        "{self.instrument.upper()}-")',
+                f'epicsEnvSet("P",             "{self.instrument.upper()}-")',
                 # '# prefix for all MCU-ish records like PTP',
-                f'epicsEnvSet("REG_NAME",      "MCS{mc_unit}:MC-MCU-0{mc_unit}:")',
+                f'epicsEnvSet("R",             "MCS{mc_unit}:MC-MCU-0{mc_unit}:")',
                 'epicsEnvSet("PREC",          "3")',
                 f'epicsEnvSet("ECM_NUMAXES",   "{num_devices}")',
                 f'epicsEnvSet("ECM_OPTIONS",   "adsPort=852;amsNetIdRemote={plc_ip}.1.1;amsNetIdLocal=$(AMSNETIDIOC)")',
@@ -697,7 +699,7 @@ class DeviceCollection:
                         f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
-                        f'epicsEnvSet("AXIS_NAME",       "{device.pv_name if device.pv_name is not None else self.format_spare_motor(mc_unit, spare_nc_idx)}:Mtr")',
+                        f'epicsEnvSet("R",               "{device.pv_name if device.pv_name is not None else self.format_spare_motor(mc_unit, spare_nc_idx)}:Mtr")',
                         f'epicsEnvSet("AXIS_NO",         "{idx}")',
                         'epicsEnvSet("RAWENCSTEP_ADEL", "0")',
                         'epicsEnvSet("RAWENCSTEP_MDEL", "0")',
@@ -716,7 +718,7 @@ class DeviceCollection:
                         f'# AXIS {idx}',
                         '#',
                         'epicsEnvSet("AXISCONFIG",      "")',
-                        f'epicsEnvSet("AXIS_NAME",       "{device.pv_name if device.pv_name is not None else self.format_spare_pneumatic(mc_unit, spare_pn_idx)}:Sht")',
+                        f'epicsEnvSet("R",               "{device.pv_name if device.pv_name is not None else self.format_spare_pneumatic(mc_unit, spare_pn_idx)}:Sht")',
                         f'epicsEnvSet("AXIS_NO",         "{idx}")',
                         # '< ethercatmcShutter.iocsh',
                         'iocshLoad("$(ethercatmc_DIR)ethercatmcShutter.iocsh")',
@@ -728,11 +730,12 @@ class DeviceCollection:
 
             # Add commands to start the poller
             commands.extend([
-                'epicsEnvSet("MOVINGPOLLPERIOD", "9")',
-                'epicsEnvSet("IDLEPOLLPERIOD",   "100")',
+                'epicsEnvSet("MOVINGPOLLPERIOD", "200")',
+                'epicsEnvSet("IDLEPOLLPERIOD",   "200")',
                 'ethercatmcStartPoller("$(MOTOR_PORT)", "$(MOVINGPOLLPERIOD)", "$(IDLEPOLLPERIOD)")',
                 '',
-                'iocinit()'
+                'iocInit()',
+                ''
             ])
 
             # Join the command lines with newline characters and write to file
