@@ -734,7 +734,8 @@ class DeviceCollection:
                 'epicsEnvSet("IDLEPOLLPERIOD",   "200")',
                 'ethercatmcStartPoller("$(MOTOR_PORT)", "$(MOVINGPOLLPERIOD)", "$(IDLEPOLLPERIOD)")',
                 '',
-                'iocinit()'
+                'iocInit()',
+                ''
             ])
 
             # Join the command lines with newline characters and write to file
